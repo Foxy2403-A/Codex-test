@@ -1,28 +1,44 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hello World</title>
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        min-height: 100dvh;
-        display: grid;
-        place-items: center;
-        background: #fff;
-        color: #222;
-        font-family: system-ui, sans-serif;
-      }
-
-      h1 {
-        margin: 0;
-        font-size: clamp(2rem, 8vw, 5rem);
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Hello World</h1>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>星际弹球</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080e20;color:#edf3ff;font-family:system-ui,sans-serif;min-height:100dvh;display:grid;place-items:center;padding:24px}main{width:min(100%,780px)}header{display:flex;justify-content:space-between;align-items:center;gap:16px}h1{margin:8px 0;font-size:clamp(24px,5vw,36px)}small{color:#8c9dbd;letter-spacing:3px}.stats{display:flex;gap:24px;font-size:14px;color:#aab9d5}.stats b{display:block;color:#70f1d2;font-size:25px}canvas{display:block;width:100%;background:radial-gradient(ellipse at top,#182647,#0b1227);border:1px solid #2b3b60;border-radius:20px;touch-action:none;margin:22px 0;box-shadow:0 24px 70px #0006}footer{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}p{color:#aab9d5;font-size:14px;margin:8px 0}button{border:0;border-radius:12px;padding:12px 20px;background:#70f1d2;color:#082329;font:600 15px system-ui;cursor:pointer}button.secondary{background:#24314e;color:#fff}button:focus-visible{outline:3px solid white;outline-offset:4px}#status{color:#70f1d2;min-height:24px}
+</style>
+</head>
+<body>
+<main>
+<header><div><small>ARCADE / 01</small><h1>星际弹球 ✦</h1></div><div class="stats"><div>得分<b id="score">0</b></div><div>生命<b id="lives">3</b></div></div></header>
+<canvas id="game" width="760" height="500" aria-label="弹球游戏：使用左右方向键或移动手指控制挡板，击碎所有砖块。"></canvas>
+<footer><div><p>← → / A D 移动 · 空格发球 / 暂停</p><p>手机：在球场滑动控制挡板，点击按钮发球</p></div><div><button id="action">开始游戏</button> <button id="restart" class="secondary">重新开始</button></div></footer>
+<p id="status" role="status" aria-live="polite">准备好了吗？击碎所有砖块！</p>
+</main>
+<script>
+'use strict';
+const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d');
+const scoreEl=document.querySelector('#score'),livesEl=document.querySelector('#lives'),statusEl=document.querySelector('#status'),action=document.querySelector('#action');
+const W=760,H=500,paddle={x:320,y:460,w:120,h:12},ball={x:380,y:449,r:8,vx:210,vy:-280};
+let bricks,score,lives,state,keys={},last=0;
+function ui(message){scoreEl.textContent=score;livesEl.textContent=lives;statusEl.textContent=message;action.textContent=state==='playing'?'暂停':state==='paused'?'继续':state==='over'||state==='won'?'再玩一次':'发球';}
+function dock(){ball.x=paddle.x+paddle.w/2;ball.y=paddle.y-ball.r-2;ball.vx=210*(Math.random()<.5?-1:1);ball.vy=-280;}
+function reset(){score=0;lives=3;state='ready';paddle.x=320;bricks=[];for(let row=0;row<5;row++)for(let col=0;col<10;col++)bricks.push({x:25+col*72,y:55+row*30,w:62,h:18,alive:true,color:['#a897ff','#7ba9ff','#58d9e8','#70f1d2','#f5ce83'][row]});dock();ui('准备好了吗？击碎所有砖块！');}
+function toggle(){if(state==='over'||state==='won')reset();if(state==='playing'){state='paused';ui('已暂停，点击继续或按空格。');}else{state='playing';ui('接住弹球，击碎所有砖块！');}}
+action.onclick=toggle;document.querySelector('#restart').onclick=reset;
+window.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','Space','KeyA','KeyD'].includes(e.code)){if(e.target.tagName==='BUTTON'&&e.code==='Space')return;e.preventDefault();keys[e.code]=true;if(e.code==='Space'&&!e.repeat)toggle();}});
+window.addEventListener('keyup',e=>keys[e.code]=false);
+window.addEventListener('blur',()=>{keys={};if(state==='playing'){state='paused';ui('已暂停，点击继续。');}});
+function move(e){const rect=canvas.getBoundingClientRect();paddle.x=Math.max(0,Math.min(W-paddle.w,(e.clientX-rect.left)*W/rect.width-paddle.w/2));if(state==='ready')dock();}
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);move(e);});canvas.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'||e.buttons)move(e);});
+function update(dt){paddle.x=Math.max(0,Math.min(W-paddle.w,paddle.x+((keys.ArrowRight||keys.KeyD?1:0)-(keys.ArrowLeft||keys.KeyA?1:0))*480*dt));if(state==='ready'){dock();return;}if(state!=='playing')return;
+const oldX=ball.x,oldY=ball.y;ball.x+=ball.vx*dt;ball.y+=ball.vy*dt;
+if(ball.x<ball.r){ball.x=ball.r;ball.vx=Math.abs(ball.vx);}if(ball.x>W-ball.r){ball.x=W-ball.r;ball.vx=-Math.abs(ball.vx);}if(ball.y<ball.r){ball.y=ball.r;ball.vy=Math.abs(ball.vy);}
+if(ball.vy>0&&oldY+ball.r<=paddle.y&&ball.y+ball.r>=paddle.y&&ball.x+ball.r>=paddle.x&&ball.x-ball.r<=paddle.x+paddle.w){let angle=(ball.x-(paddle.x+paddle.w/2))/(paddle.w/2)*1.05,speed=Math.min(540,Math.hypot(ball.vx,ball.vy)+8);ball.vx=Math.sin(angle)*speed;ball.vy=-Math.cos(angle)*speed;ball.y=paddle.y-ball.r;}
+for(const b of bricks){if(!b.alive)continue;if(ball.x+ball.r>b.x&&ball.x-ball.r<b.x+b.w&&ball.y+ball.r>b.y&&ball.y-ball.r<b.y+b.h){b.alive=false;score+=10;if(oldY+ball.r<=b.y||oldY-ball.r>=b.y+b.h)ball.vy*=-1;else ball.vx*=-1;ball.x=oldX;ball.y=oldY;ui('漂亮！继续保持。');if(bricks.every(b=>!b.alive)){state='won';ui('通关！你点亮了整片星空 ✦');}break;}}
+if(ball.y-ball.r>H){lives--;state=lives?'ready':'over';dock();ui(lives?'掉球了，还有 '+lives+' 次机会，点击发球！':'游戏结束，得分 '+score+'，再挑战一次吧！');}}
+function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#ffffff30';for(let i=0;i<45;i++){ctx.beginPath();ctx.arc((i*137+19)%W,(i*97+17)%H,1,0,Math.PI*2);ctx.fill();}for(const b of bricks){if(!b.alive)continue;ctx.fillStyle=b.color;ctx.shadowColor=b.color;ctx.shadowBlur=9;ctx.beginPath();ctx.roundRect(b.x,b.y,b.w,b.h,5);ctx.fill();}ctx.shadowBlur=15;ctx.shadowColor='#70f1d2';ctx.fillStyle='#70f1d2';ctx.beginPath();ctx.roundRect(paddle.x,paddle.y,paddle.w,paddle.h,6);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;if(state!=='playing'){ctx.fillStyle='#080e2088';ctx.fillRect(0,220,W,90);ctx.fillStyle='#edf3ff';ctx.font='bold 26px system-ui';ctx.textAlign='center';ctx.fillText(state==='paused'?'已暂停':state==='won'?'✦ 挑战成功 ✦':state==='over'?'游戏结束':'点击发球 · 开始挑战',W/2,274);}}
+function frame(time){let dt=Math.min((time-last)/1000,.04);last=time;for(let i=0;i<4;i++)update(dt/4);draw();requestAnimationFrame(frame);}reset();requestAnimationFrame(frame);
+</script>
+</body>
 </html>
